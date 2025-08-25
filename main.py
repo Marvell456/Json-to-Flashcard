@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+import random
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton,
     QVBoxLayout, QMessageBox, QHBoxLayout, QScrollArea
@@ -100,6 +101,7 @@ class FlashcardApp(QWidget):
             QMessageBox.information(self, "No Cards", "No flashcards found!")
             return
         self.review_list = list(self.flashcards)  # copy in order
+        random.shuffle(self.review_list)
         self.card_index = 0
         self.showing_answer = False
         self.start_btn.setEnabled(False)
