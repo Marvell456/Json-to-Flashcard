@@ -1,4 +1,4 @@
-# Face Recognition Ultra
+# JSON-to-Flashcard
 A Python program to turn a JSON file full of exam materials into GUI Flashcards to memorize and practice them easily.
 
 # Feature:
