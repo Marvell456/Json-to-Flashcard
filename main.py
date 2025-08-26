@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+import random
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton,
     QVBoxLayout, QMessageBox, QHBoxLayout, QScrollArea
@@ -9,19 +10,43 @@ from PyQt5.QtCore import Qt
 
 FLASHCARD_FILE = "flashcards.json"
 
+SAVE_PATH = "data"  # The save path (right now used for progress)
+
 def load_flashcards():
     if os.path.exists(FLASHCARD_FILE):
         with open(FLASHCARD_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return []
 
+def save_data(data):
+    file = open(SAVE_PATH, "w") #opens the file with write access
+    file.write(json.dumps(data)) #writes the configs as string
+    file.close() #closes file
+
+def load_data():
+     if os.path.exists(SAVE_PATH):
+         file = open(SAVE_PATH)
+         data = file.read()
+         return json.loads(data)
+
 class FlashcardApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Flashcard App")
         self.flashcards = load_flashcards()
-        self.card_index = 0
+        
+        self.data = {   # Datat can contain anything, that should be saved between sessions
+            "card_index": 0,
+            "review_list": [],
+        }
+        
+        loaded_data = load_data()
+        if loaded_data:
+            self.data = loaded_data
+
         self.showing_answer = False
+
+        
 
         self.init_ui()
 
@@ -99,8 +124,10 @@ class FlashcardApp(QWidget):
         if not self.flashcards:
             QMessageBox.information(self, "No Cards", "No flashcards found!")
             return
-        self.review_list = list(self.flashcards)  # copy in order
-        self.card_index = 0
+        if not self.data["review_list"]: # only shuffle when we arent resuming
+            self.data["review_list"] = list(self.flashcards)  # copy in order
+            random.shuffle(self.data["review_list"]) # Rnadom order to avoid learnign by pattern
+        
         self.showing_answer = False
         self.start_btn.setEnabled(False)
         self.show_answer_btn.setEnabled(True)
@@ -110,8 +137,8 @@ class FlashcardApp(QWidget):
         self.show_card()
 
     def show_card(self):
-        if self.card_index < len(self.review_list):
-            card = self.review_list[self.card_index]
+        if self.data["card_index"] < len(self.data["review_list"]):
+            card = self.data["review_list"][self.data["card_index"]]
             if self.showing_answer:
                 display = f"Q: {card['question']}\n\nA: {card['answer']}"
             else:
@@ -119,7 +146,7 @@ class FlashcardApp(QWidget):
             self.card_label.setText(display)
 
             # Update the progress label
-            self.progress_label.setText(f"Progress: {self.card_index + 1} of {len(self.review_list)}")
+            self.progress_label.setText(f"Progress: {self.data["card_index"] + 1} of {len(self.data["review_list"])}")
         else:
             self.card_label.setText("🎉 You've finished all flashcards!")
             self.show_answer_btn.setEnabled(False)
@@ -127,34 +154,36 @@ class FlashcardApp(QWidget):
             self.next_f_btn.setEnabled(False)
             self.prev_btn.setEnabled(False)
             self.start_btn.setEnabled(True)
+            self.data["review_list"] = [] # Reset when done, so that it gets reshuffled next time
+            self.data["card_index"] = 0
+        save_data(self.data) #Save everything we update card
 
     def show_answer(self):
         self.showing_answer = True
         self.show_card()
 
     def next_card_continue(self):
-        if self.card_index < len(self.review_list) - 1:
-            self.card_index += 1
+        if self.data["card_index"] < len(self.data["review_list"]) - 1:
+            self.data["card_index"] += 1
             self.showing_answer = False
             self.show_card()
         else:
-            self.card_index += 1
+            self.data["card_index"] += 1
             self.show_card()
 
     def next_card_fail(self):
-        if self.card_index < len(self.review_list):
-            card = self.review_list[self.card_index]
+        if self.data["card_index"] < len(self.data["review_list"]):
+            card = self.data["review_list"][self.data["card_index"]]
 
-            # Insert the card 6 positions ahead
-            insert_index = min(self.card_index + 6, len(self.review_list))
+            # Insert the card between 3 and 10 positions ahead
+            insert_index = min(random.randrange(self.data["card_index"] + 3, self.data["card_index"] + 10), len(self.data["review_list"]))
 
-            self.review_list.insert(insert_index, card)
-
+            self.data["review_list"].insert(insert_index, card)
         self.next_card_continue()
 
     def prev_card(self):
-        if self.card_index > 0:
-            self.card_index -= 1
+        if self.data["card_index"] > 0:
+            self.data["card_index"] -= 1
             self.showing_answer = False
             self.show_card()
 
